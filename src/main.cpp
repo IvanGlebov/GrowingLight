@@ -366,9 +366,9 @@ BLYNK_WRITE(PUMP_RELAY_PIN)
 
 
 // Настройки для подключения к Blynk
-char auth[] = "97yo4_l7tPBuOgG14yX7WJVkRqRJZTsd";
-char ssid[] = "iPhone"; // "Keenetic-4926"; // Keenetic-6756
-char pass[] = "12345678"; // "Q4WmFQTa";   // zqecxwrv123
+char auth[] = "";
+char ssid[] = ""; 
+char pass[] = ""; 
 
 BlynkTimer transferData;
 
