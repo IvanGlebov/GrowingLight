@@ -9,13 +9,12 @@ These settings now shoud be entered in code. In the future versions there may be
 
 # Application interface
 ## Main page
-<img src="/readmeSrc/mainPage.jpg" height="500px">
+<img src="/readmeSrc/settingsPage.jpg" height="500px">
 
 Here you can find such air and soil parametrs as temperature and himidity. You can control light and pump work from here.
 
 ## Settings page
-<img src="/readmeSrc/settingsPage.jpg" height="500px">
-
+<img src="/readmeSrc/mainPage.jpg" height="500px">
 
 Here you can find any settings for the application. 
 
