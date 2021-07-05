@@ -3,6 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 #include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
@@ -15,27 +16,28 @@
 
 // Общие константы
 #define USE_BLYNK true
+#define USE_LCD true
 #define SHOW_DEBUG true
 #define SEND_SENSORS_DATA true
 #define PUSH_RELAYS true
 #define DISABLE_STEPPER true
 #define STORE_TO_EEPROM true
 #define RECOVER_FROM_EEPROM true
-#define SHOW_SENSORS_DATA false
-#define SHOW_WATRING_PING false
+#define SHOW_SENSORS_DATA true
+#define SHOW_WATRING_PING true
 #define SHOW_WATERING_PROCESS false
 
 // Константы для управления тестами
-#define TEST_GET_BME false
+#define TEST_GET_BME true
 #define TEST_GROUND_HUM false
 #define TEST_LIGHT false
-#define TEST_GROUND_TEMP false
+#define TEST_GROUND_TEMP true
 #define TEST_STEPPER false
 #define TEST_CHECK_BORDER_FULL_FALSE true
-#define SHOW_RELAYS_PUSHING false
+#define SHOW_RELAYS_PUSHING true
 
 // Датчик освещённости
-BH1750 lightSensor;
+BH1750 lightSensor(0x23);
 // Датчик температуры и влажности воздуха
 Adafruit_BME280 bme280;
 // Датчик температуры почвы
@@ -43,6 +45,8 @@ Adafruit_BME280 bme280;
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature groundSensors(&oneWire);
 
+// Дисплей
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 #define GROUND_HUM_SENSOR_PIN A0
 
 // Blynk pins mapping
@@ -82,7 +86,8 @@ DallasTemperature groundSensors(&oneWire);
 #define WATERING_TIME_LEFT V26
 #define WATERING_AUTO_MODE_PIN V27
 
-struct autoModeVaruables {
+struct autoModeVaruables
+{
   int autoLightFlag;
   int autoLightFlagEEPROM;
   int lightBorder;
@@ -107,7 +112,7 @@ struct autoModeVaruables {
   int wateringFlag;
   int wateringAutoMode;
   int wateringAutoModeEEPROM;
-/*
+  /*
 0%           25%         50%  60%    70% 75%        100%
 |----------------------------------------------------|
 0% -> 50% - Красная зона
@@ -120,23 +125,22 @@ struct autoModeVaruables {
 При 75% выскакивает уведомление о попадении в зелёную зону
 Включение полива заблокировано.
 */
-
 };
 
 autoModeVaruables autoVariables;
 
-void fillAutoVariables(autoModeVaruables * variables)
+void fillAutoVariables(autoModeVaruables *variables)
 {
   variables->autoLightFlag = 1; // 1 - автоматика, 2 - ручной
   variables->lightBorder = 200; // 200 lux
   variables->autoLightFlagEEPROM = 2;
   variables->lightBorderEEPROM = 3;
   // Полив
-  variables->wateringMode = 1; // 1 - красный режим, 2 - жёлтый, 3 - зелёный
-  variables->redHumNotificationBorder = 25; // 25%
+  variables->wateringMode = 1;                 // 1 - красный режим, 2 - жёлтый, 3 - зелёный
+  variables->redHumNotificationBorder = 25;    // 25%
   variables->yellowHumNotificationBorder = 60; // 60%
-  variables->greenHumNotificationBroder = 75; // 75%
-  variables->wateringNotificationsMode = 1; // 1 - получать уведомления, 2 - не получать уведомления
+  variables->greenHumNotificationBroder = 75;  // 75%
+  variables->wateringNotificationsMode = 1;    // 1 - получать уведомления, 2 - не получать уведомления
   variables->wateringToOnFlag = 0;
   variables->wateringModeEEPROM = 4;
   variables->redHumNotificationBorderEEPROM = 5;
@@ -147,12 +151,11 @@ void fillAutoVariables(autoModeVaruables * variables)
   variables->wateringAutoModeEEPROM = 10;
 }
 
-
 // ----------------------- //
 // Блок РЕЛЕ
 // ----------------------- //
 // Пин реле освещения
-#define LIGHT_RELAY_PIN V9 
+#define LIGHT_RELAY_PIN V9
 #define LIGHT_EEPROM_NUM 0
 // Пин реле помпы
 #define PUMP_RELAY_PIN V10
@@ -167,26 +170,25 @@ struct relayStates
 // Структура для хранения состояний реле
 struct relaysArray
 {
-  relayStates lightRelay = {D1, LIGHT_RELAY_PIN, false, 0};
-  relayStates pumpRelay = {D2, PUMP_RELAY_PIN, false, 1};
+  relayStates lightRelay = {D5, LIGHT_RELAY_PIN, false, 0};
+  relayStates pumpRelay = {D6, PUMP_RELAY_PIN, false, 1};
 };
-
-
 
 //------------------------------------------------------//
 //---------------ПАМЯТЬ-ПРИ-ПЕРЕЗАПУСКЕ-----------------//
 //------------------------------------------------------//
 // Количество байт памяти занятых для работы EEPROM
-#define EEPROM_CELLS_NUMBER 30 
+#define EEPROM_CELLS_NUMBER 30
 // Функция для чтения данных из EEPROM в заранее прописанные переменные
 
-struct actionStruct{
+struct actionStruct
+{
   String actionType;
   int value;
   int eepromPin;
 };
 
-void saveToEEPROM(actionStruct* action)
+void saveToEEPROM(actionStruct *action)
 {
   EEPROM.write(action->eepromPin, int(action->value));
   EEPROM.commit();
@@ -202,7 +204,7 @@ void recoverEEPROM(relaysArray *relays, autoModeVaruables *variables)
   relays->lightRelay.state = EEPROM.read(relays->lightRelay.eeprom_num);
   // +
   relays->pumpRelay.state = EEPROM.read(relays->pumpRelay.eeprom_num);
-  
+
   // +
   variables->autoLightFlag = EEPROM.read(variables->autoLightFlagEEPROM);
   Blynk.virtualWrite(AUTO_LIGHT_PIN, variables->autoLightFlag);
@@ -228,7 +230,7 @@ void recoverEEPROM(relaysArray *relays, autoModeVaruables *variables)
   // +
   variables->wateringNotificationsMode = EEPROM.read(variables->wateringNotificationsModeEEPROM);
   Blynk.virtualWrite(WATERING_NOTIFICATIONS_MODE_PIN, variables->wateringNotificationsMode);
-  
+
   // +
   variables->baseWateringDuration = EEPROM.read(variables->baseWateringDurationEEPROM);
   Blynk.virtualWrite(BASE_WATERING_TIME_PIN, variables->baseWateringDuration);
@@ -243,7 +245,6 @@ void recoverEEPROM(relaysArray *relays, autoModeVaruables *variables)
   }
 }
 
-
 //------------------------------------------------------//
 //-------------------ШАГОВЫЙ-ДВИГАТЕЛЬ------------------//
 //------------------------------------------------------//
@@ -251,39 +252,43 @@ void recoverEEPROM(relaysArray *relays, autoModeVaruables *variables)
 #define APPROVE_STEP_PIN V7
 #define CURRENT_STEP_DISPLAY_PIN V8
 // Библиотека для направления движения шагового двигателя
-enum directions{down = 0, up};
+enum directions
+{
+  down = 0,
+  up
+};
 // Структура содержащая все настройки для работы функций с шаговым двигателем
 struct stepperSettings
 {
-// Пин для указания направления движения
+  // Пин для указания направления движения
   uint8_t directionPin;
-// Пин для подачи сигнала шага
+  // Пин для подачи сигнала шага
   uint8_t steppingPin;
-// Длительность задержки шага мотора в микросекундах
+  // Длительность задержки шага мотора в микросекундах
   int stepTime;
-// Количество шагов на преодоление всей высоты
+  // Количество шагов на преодоление всей высоты
   int maxStep;
-// Пин верхнего датчика касания
+  // Пин верхнего датчика касания
   uint8_t topSensor;
-// Пин нижнего датчика касания
+  // Пин нижнего датчика касания
   uint8_t bottomSensor;
-// Минимальное положение в шагах (обычно 0, но можно двинуть)
+  // Минимальное положение в шагах (обычно 0, но можно двинуть)
   int bottomStep;
 };
 stepperSettings motor1 = {D7, D6, 500, 2000, D3, D2, 0};
 // Переменная для хранения значения пришедшего шага с Blynk
 int tempStep;
-// Фактическое значение текущего шага 
+// Фактическое значение текущего шага
 int currentStep;
 
 //------------------------------------------------------//
 //-------------------------РЕЛЕ-------------------------//
 //------------------------------------------------------//
-// Вариант замены структуры на массив для удобства написания функции применения. 
+// Вариант замены структуры на массив для удобства написания функции применения.
 // В таком варианте раписывать значения становится довольно неудобно.
 relaysArray relays;
 // Функция применения значений с логических переменных реле
-void useRelays(relaysArray * relays, int negResponseToBlynkValue = 0,int posResponseToBlynkValue = 1)
+void useRelays(relaysArray *relays, int negResponseToBlynkValue = 0, int posResponseToBlynkValue = 1)
 {
   if (relays->lightRelay.state == true)
   {
@@ -324,7 +329,7 @@ BlynkTimer pushRelays;
 // Реле освещения
 BLYNK_WRITE(LIGHT_RELAY_PIN)
 {
-  int a = param.asInt(); 
+  int a = param.asInt();
   relays.lightRelay.state = (a == 1) ? true : false;
   if (STORE_TO_EEPROM)
   {
@@ -345,7 +350,7 @@ BLYNK_WRITE(LIGHT_RELAY_PIN)
 // Реле помпы
 BLYNK_WRITE(PUMP_RELAY_PIN)
 {
-  int a = param.asInt(); 
+  int a = param.asInt();
   relays.pumpRelay.state = (a == 1) ? true : false;
   if (STORE_TO_EEPROM)
   {
@@ -364,11 +369,13 @@ BLYNK_WRITE(PUMP_RELAY_PIN)
   }
 }
 
-
 // Настройки для подключения к Blynk
+// Тут надо указать ключ конкретного устройства
 char auth[] = "";
-char ssid[] = ""; 
-char pass[] = ""; 
+// Тут надо указать название WiFi сети
+char ssid[] = "";
+// Тут надо указать пароля для WiFi сети
+char pass[] = "";
 
 BlynkTimer transferData;
 
@@ -382,7 +389,6 @@ struct sensorsData
   float lightLevel;
   float airPressure;
 };
-
 
 //------------------------------------------------------//
 //-ФУНКЦИИ-ДЛЯ-ПОЛУЧЕНИЯ-ДАННЫХ-С-ДИТЧИКОВ-И-ТЕСТОВ-----//
@@ -404,13 +410,16 @@ void showSensorsData(sensorsData *data)
 // }
 void getGroundHumidity(sensorsData *data, uint8_t pin)
 {
-  data->groundHum = map(analogRead(pin), 0, 1024, 100, 0);
+  // %101 используется для отрезания лишних значений, которые превышают
+  data->groundHum = map(analogRead(pin), 9, 1024, 100, 0);
+  // data->groundHum = analogRead(A0);
 }
 // Функция принимает на вход указатель на переменную в которую будет записан ответ, указатель на объект
 // датчиков DS18B20 и вариативно индекс датчика. Если после выполнения пришло значение -100, то при
 // чтении произошла ошибка.
 void getGroundTemperature(sensorsData *data, DallasTemperature *sensors, int sensorIndex = 0)
 {
+  sensors->requestTemperatures();
   float temp = sensors->getTempCByIndex(sensorIndex);
   if (temp != DEVICE_DISCONNECTED_C)
   {
@@ -437,34 +446,47 @@ void getLightLevel(sensorsData *data, BH1750 *sensor)
   data->lightLevel = sensor->readLightLevel();
   lux = data->lightLevel;
   // Measurement time correcting
-  if(lux < 0) Serial.println("Error reading ligt level");
-  else {
-    if (lux > 40000.0){
+  if (lux < 0)
+    Serial.println("Error reading ligt level");
+  else
+  {
+    if (lux > 40000.0)
+    {
       // reduce measurement time - when on direct sun light
-      if (lightSensor.setMTreg(32)){
+      if (lightSensor.setMTreg(32))
+      {
         // if (SHOW_DEBUG) Serial.println(F("Setting MTReg to low value for high light environment"));
       }
-      else {
+      else
+      {
         // if(SHOW_DEBUG) Serial.println(F("Error setting MTReg to low value for high light environment"));
       }
     }
-    else {
-      if (lux > 10.0){
+    else
+    {
+      if (lux > 10.0)
+      {
         // regular light enviroment
-        if (lightSensor.setMTreg(69)){
+        if (lightSensor.setMTreg(69))
+        {
           // if (SHOW_DEBUG) Serial.println(F("Setting MTReg to default value for normal light environment"));
         }
-        else {
+        else
+        {
           // if (SHOW_DEBUG) Serial.println(F("Error setting MTReg to default value for normal light environment"));
         }
       }
-      else {
-        if (lux <= 10.0){
+      else
+      {
+        if (lux <= 10.0)
+        {
           // very low light enviroment
-          if (lightSensor.setMTreg(138)){
+          if (lightSensor.setMTreg(138))
+          {
             // if (SHOW_DEBUG) Serial.println(F("Setting MTReg to high value for low light environment"));
           }
-          else {
+          else
+          {
             // if (SHOW_DEBUG) Serial.println(F("Error setting MTReg to high value for low light environment"));
           }
         }
@@ -472,7 +494,6 @@ void getLightLevel(sensorsData *data, BH1750 *sensor)
     }
   }
 }
-
 
 //------------------------------------------------------//
 //----------------------ШАГОВЫЙ-ПРИВОД------------------//
@@ -493,7 +514,7 @@ bool checkBorder(uint8_t pin)
 bool moveCarriageTo(int positionInSteps, int *currentPosition, stepperSettings *motor)
 {
   bool direction = *(currentPosition) > positionInSteps ? down : up;
-  int stepDifference = abs(*(currentPosition) - positionInSteps);
+  int stepDifference = abs(*(currentPosition)-positionInSteps);
   if (SHOW_DEBUG)
   {
     Serial.println("Direction: " + String(direction == down ? "down" : "up"));
@@ -503,7 +524,7 @@ bool moveCarriageTo(int positionInSteps, int *currentPosition, stepperSettings *
   if (direction == up)
   {
     digitalWrite(motor->directionPin, HIGH);
-  } 
+  }
   else
   {
     digitalWrite(motor->directionPin, LOW);
@@ -547,7 +568,7 @@ bool moveCarriageTo(int positionInSteps, int *currentPosition, stepperSettings *
         delayMicroseconds(motor->stepTime);
         digitalWrite(motor->steppingPin, LOW);
         delayMicroseconds(motor->stepTime);
-        *(currentPosition) = *(currentPosition) - 1;
+        *(currentPosition) = *(currentPosition)-1;
         if ((*(currentPosition) % 10 == 0) || (i == stepDifference - 1))
         {
           Blynk.virtualWrite(CURRENT_STEP_DISPLAY_PIN, *(currentPosition));
@@ -573,7 +594,7 @@ void calibrate(stepperSettings *motor)
 {
   // Вниз до упора
   digitalWrite(motor->directionPin, LOW);
-  while(checkBorder(motor->bottomSensor) != true)
+  while (checkBorder(motor->bottomSensor) != true)
   {
     digitalWrite(motor->steppingPin, HIGH);
     delayMicroseconds(motor->stepTime);
@@ -583,7 +604,7 @@ void calibrate(stepperSettings *motor)
   // Вверх до упора и считаем шаги
   digitalWrite(motor->directionPin, HIGH);
   int steps = 0;
-  while(checkBorder(motor->topSensor) != true)
+  while (checkBorder(motor->topSensor) != true)
   {
     digitalWrite(motor->steppingPin, HIGH);
     delayMicroseconds(motor->stepTime);
@@ -599,7 +620,7 @@ void calibrate(stepperSettings *motor)
   motor->maxStep = steps;
   // Обратно опускаемся вниз до упора
   digitalWrite(motor->directionPin, LOW);
-  while(checkBorder(motor->bottomSensor) != true)
+  while (checkBorder(motor->bottomSensor) != true)
   {
     digitalWrite(motor->steppingPin, HIGH);
     delayMicroseconds(motor->stepTime);
@@ -617,26 +638,25 @@ BLYNK_WRITE(CURRENT_STEP_PIN)
 }
 BLYNK_WRITE(APPROVE_STEP_PIN)
 {
-  if(!DISABLE_STEPPER)
+  if (!DISABLE_STEPPER)
   {
     if (param.asInt() == 1)
-  {
-    if (TEST_STEPPER)
     {
-      Serial.println("Current step is " + String(currentStep));
-      Serial.println("Moving to " + String(tempStep));
-      currentStep = tempStep;
-      Serial.println("Test moving finished.");
+      if (TEST_STEPPER)
+      {
+        Serial.println("Current step is " + String(currentStep));
+        Serial.println("Moving to " + String(tempStep));
+        currentStep = tempStep;
+        Serial.println("Test moving finished.");
+      }
+      else
+      {
+        moveCarriageTo(tempStep, &currentStep, &motor1);
+      }
+      Blynk.virtualWrite(CURRENT_STEP_DISPLAY_PIN, currentStep);
     }
-    else 
-    {
-      moveCarriageTo(tempStep, &currentStep, &motor1);
-    }
-    Blynk.virtualWrite(CURRENT_STEP_DISPLAY_PIN, currentStep);
-  }
   }
 }
-
 
 //------------------------------------------------------//
 //-ФУНКЦИИ-ДЛЯ-ОТПРАВКИ-ДАННЫХ-НА-BLYNK-----------------//
@@ -672,11 +692,10 @@ void blynkDataTransfer()
   collectData(&dataStorage, GROUND_HUM_SENSOR_PIN, &groundSensors, &bme280, &lightSensor);
   pushDataToBlynk(&dataStorage, GROUND_TEMP_PIN, GROUND_HUM_PIN, AIR_TEMP_PIN, AIR_HUM_PIN, LIGHT_LEVEL_PIN, AIR_PRESSURE_PIN);
   if (SHOW_DEBUG && SHOW_SENSORS_DATA)
-  { 
+  {
     showSensorsData(&dataStorage);
   }
 }
-
 
 //------------------------------------------------------//
 //---------------------ГРАНИЦЫ--------------------------//
@@ -688,7 +707,6 @@ struct sensorsBorders
   int redHumBorder;
   int yellowHumBorder;
   int greenHumBorder;
-
 };
 
 sensorsBorders borders;
@@ -708,41 +726,41 @@ void lightControl(relayStates *lightRelay, int border, int lightLevel, int geste
   if (workFlag == 1)
   {
     if (lightLevel < border - gesteresis)
-  {
-    lightRelay->state = true;
-    if (DISPLAY_LIGHT_TO_BLYNK)
     {
-      Blynk.virtualWrite(lightRelay->virtualPin, 1);
+      lightRelay->state = true;
+      if (DISPLAY_LIGHT_TO_BLYNK)
+      {
+        Blynk.virtualWrite(lightRelay->virtualPin, 1);
+      }
+      if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
+      {
+        Serial.println("AUTO! -> Light ON.");
+      }
     }
-    if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
-    {
-      Serial.println("AUTO! -> Light ON.");
-    }
-  }
     if (lightLevel > border + gesteresis)
-  {
-    lightRelay->state = false;
-    if (DISPLAY_LIGHT_TO_BLYNK)
     {
-      Blynk.virtualWrite(lightRelay->virtualPin, 0);
+      lightRelay->state = false;
+      if (DISPLAY_LIGHT_TO_BLYNK)
+      {
+        Blynk.virtualWrite(lightRelay->virtualPin, 0);
+      }
+      if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
+      {
+        Serial.println("AUTO! -> Light OFF.");
+      }
     }
-    if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
-    {
-      Serial.println("AUTO! -> Light OFF.");
-    }
-  }
   }
 }
 void lightControlWrapper()
 {
-  lightControl(&relays.lightRelay, autoVariables.lightBorder, dataStorage.lightLevel, 
+  lightControl(&relays.lightRelay, autoVariables.lightBorder, dataStorage.lightLevel,
                30, autoVariables.autoLightFlag);
 }
 // Получение режима работы освещения
 BLYNK_WRITE(AUTO_LIGHT_PIN)
 {
   autoVariables.autoLightFlag = param.asInt();
-  
+
   EEPROM.write(autoVariables.autoLightFlagEEPROM, autoVariables.autoLightFlag);
   EEPROM.commit();
 
@@ -764,7 +782,6 @@ BLYNK_WRITE(LIGHT_BORDER_PIN)
     Serial.println("Light border CHANGED to: " + String(autoVariables.lightBorder));
   }
 }
-
 
 BlynkTimer autoWatering;
 BLYNK_WRITE(RED_HUM_NOTIFICATION_PIN)
@@ -838,98 +855,107 @@ BLYNK_WRITE(WATERING_AUTO_MODE_PIN)
     EEPROM.commit();
   }
 }
-enum wateringModes{red = 1, yellow, green};
-// Функиця для установки режима в котором сейчас находится 
+enum wateringModes
+{
+  red = 1,
+  yellow,
+  green
+};
+// Функиця для установки режима в котором сейчас находится
 void wateringModeControl(autoModeVaruables *variables, sensorsData *data)
 {
   if (variables->wateringFlag != 1)
   {
     if (50 > data->groundHum)
-  {
-    variables->wateringMode = red;
+    {
+      variables->wateringMode = red;
 
-    int diff = 75 - data->groundHum;
-    variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
-    Blynk.virtualWrite(RED_LED_PIN, 255);
-    Blynk.virtualWrite(YELLOW_LED_PIN, 0);
-    Blynk.virtualWrite(GREEN_LED_PIN, 0);
-  } else if ((50 <= data->groundHum) && (data->groundHum < 75))
-  {
-    variables->wateringMode = yellow;
+      int diff = 75 - data->groundHum;
+      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      Blynk.virtualWrite(RED_LED_PIN, 255);
+      Blynk.virtualWrite(YELLOW_LED_PIN, 0);
+      Blynk.virtualWrite(GREEN_LED_PIN, 0);
+    }
+    else if ((50 <= data->groundHum) && (data->groundHum < 75))
+    {
+      variables->wateringMode = yellow;
 
-    int diff = 75 - data->groundHum;
-    variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
-    Blynk.virtualWrite(RED_LED_PIN, 0);
-    Blynk.virtualWrite(YELLOW_LED_PIN, 255);
-    Blynk.virtualWrite(GREEN_LED_PIN, 0);
-  } else if (75 <= data->groundHum)
-  {
-    variables->wateringMode = green;
+      int diff = 75 - data->groundHum;
+      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      Blynk.virtualWrite(RED_LED_PIN, 0);
+      Blynk.virtualWrite(YELLOW_LED_PIN, 255);
+      Blynk.virtualWrite(GREEN_LED_PIN, 0);
+    }
+    else if (75 <= data->groundHum)
+    {
+      variables->wateringMode = green;
 
-    int diff = 75 - data->groundHum;
-    variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
-    Blynk.virtualWrite(RED_LED_PIN, 0);
-    Blynk.virtualWrite(YELLOW_LED_PIN, 0);
-    Blynk.virtualWrite(GREEN_LED_PIN, 255);
-  }
+      int diff = 75 - data->groundHum;
+      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      Blynk.virtualWrite(RED_LED_PIN, 0);
+      Blynk.virtualWrite(YELLOW_LED_PIN, 0);
+      Blynk.virtualWrite(GREEN_LED_PIN, 255);
+    }
   }
 }
 
 // Функция для управления помпой при автоматическом режиме работы
 void watering(autoModeVaruables *variables, relayStates *pump)
 {
-  if(variables->wateringMode != green)
+  if (variables->wateringMode != green)
   {
     int currentTime = hour() * 3600 + minute() * 60 + second();
     if (variables->wateringToOnFlag == 1)
-  {
-    int diff = 75 - dataStorage.groundHum;
-    // variables->wateringDuration = ((diff % 50) * variables->baseWateringDuration) / 50;
-    // variables->wateringDuration = 25;
-    variables->wateringTimestamp = currentTime;
-    // variables->wateringDuration
-    variables->wateringToOnFlag = 0;
-    variables->wateringFlag = 1;
-    if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
     {
-      Serial.println("Difference: " + String(diff));
-      Serial.println("Watering duration: " + String(variables->wateringDuration));
-      Serial.println("Current time: " + String(variables->wateringTimestamp));
-      Serial.println("WateringFlag to 1");
+      int diff = 75 - dataStorage.groundHum;
+      // variables->wateringDuration = ((diff % 50) * variables->baseWateringDuration) / 50;
+      // variables->wateringDuration = 25;
+      variables->wateringTimestamp = currentTime;
+      // variables->wateringDuration
+      variables->wateringToOnFlag = 0;
+      variables->wateringFlag = 1;
+      if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
+      {
+        Serial.println("Difference: " + String(diff));
+        Serial.println("Watering duration: " + String(variables->wateringDuration));
+        Serial.println("Current time: " + String(variables->wateringTimestamp));
+        Serial.println("WateringFlag to 1");
+      }
     }
-  }
     if (variables->wateringFlag == 1)
-  {
-    Blynk.virtualWrite(WATERING_TIME_LEFT, variables->wateringTimestamp + variables->wateringDuration - currentTime);
-  }
+    {
+      Blynk.virtualWrite(WATERING_TIME_LEFT, variables->wateringTimestamp + variables->wateringDuration - currentTime);
+    }
     if (currentTime - variables->wateringTimestamp <= variables->wateringDuration)
-  {
-    if (SHOW_DEBUG)
     {
-      Serial.println("Current time:" + String(currentTime));
-      Serial.println("Duration: " + String(variables->wateringDuration));
-      Serial.println("Watering timestamp: " + String(variables->wateringTimestamp));
-      Serial.println("Time left: " + String(variables->wateringTimestamp + variables->wateringDuration - currentTime));
+      if (SHOW_DEBUG)
+      {
+        Serial.println("Current time:" + String(currentTime));
+        Serial.println("Duration: " + String(variables->wateringDuration));
+        Serial.println("Watering timestamp: " + String(variables->wateringTimestamp));
+        Serial.println("Time left: " + String(variables->wateringTimestamp + variables->wateringDuration - currentTime));
+      }
+      if (variables->wateringFlag == 1)
+      {
+        pump->state = true;
+        Blynk.virtualWrite(pump->virtualPin, pump->state);
+        if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
+        {
+          Serial.println("Pump to ON");
+        }
+      }
     }
-    if (variables->wateringFlag == 1)
+    else
     {
-      pump->state = true;
+      variables->wateringFlag = 0;
+      Blynk.virtualWrite(WATERING_TIME_LEFT, 0);
+      pump->state = false;
       Blynk.virtualWrite(pump->virtualPin, pump->state);
       if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
       {
-        Serial.println("Pump to ON");
+        Serial.println("Pump to OFF");
       }
     }
-  } else {
-    variables->wateringFlag = 0;
-    Blynk.virtualWrite(WATERING_TIME_LEFT, 0);
-    pump->state = false;
-    Blynk.virtualWrite(pump->virtualPin, pump->state);
-    if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
-    {
-      Serial.println("Pump to OFF");
-    }
-  }
   }
 }
 void wateringWrapper()
@@ -940,6 +966,168 @@ void wateringWrapper()
     watering(&autoVariables, &relays.pumpRelay);
   }
 }
+
+//------------------------------------------------------//
+//-------------------ОТОБРАЖЕНИЕ------------------------//
+//------------------------------------------------------//
+// Функция инициализации LCD дисплея
+void initLCD(LiquidCrystal_I2C *lcd_i2c)
+{
+  // Символ полностью заполненного квадрата
+  byte fiveCols[] = {
+      0x1F,
+      0x1F,
+      0x1F,
+      0x1F,
+      0x1F,
+      0x1F,
+      0x1F,
+      0x1F};
+  byte fourCols[] = {
+      0x1E,
+      0x1E,
+      0x1E,
+      0x1E,
+      0x1E,
+      0x1E,
+      0x1E,
+      0x1E};
+  byte threeCols[] = {
+      0x1C,
+      0x1C,
+      0x1C,
+      0x1C,
+      0x1C,
+      0x1C,
+      0x1C,
+      0x1C};
+  byte twoCols[] = {
+      0x18,
+      0x18,
+      0x18,
+      0x18,
+      0x18,
+      0x18,
+      0x18,
+      0x18};
+  byte oneCol[] = {
+      0x10,
+      0x10,
+      0x10,
+      0x10,
+      0x10,
+      0x10,
+      0x10,
+      0x10};
+  // Инициализируем LCD дисплей
+  lcd_i2c->init();
+  // Включаем подсветку на дисплее
+  lcd_i2c->backlight();
+  lcd_i2c->createChar(1, oneCol);
+  lcd_i2c->createChar(2, twoCols);
+  lcd_i2c->createChar(3, threeCols);
+  lcd_i2c->createChar(4, fourCols);
+  lcd_i2c->createChar(5, fiveCols);
+}
+// Функция вывода информации о грядке на дисплей
+// int screen = 0;
+void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVaruables *variables, relaysArray *relays)
+{
+  int static screen = 0;
+  if (SHOW_DEBUG)
+  {
+    Serial.println("Pushing LCD");
+  }
+  if (variables->wateringFlag == 1)
+  {
+    
+    int currentTime = hour() * 3600 + minute() * 60 + second();
+    int timeLeft = variables->wateringTimestamp + variables->wateringDuration - currentTime;
+    // Длина шкалы в процентах. Удобно что она совпадает по длине с количеством пикселей дисплея.
+    int length = 100 - int(float(timeLeft)/float(variables->wateringDuration)*100);
+    int fullCells = length / 5;
+    int lastCell = length % 5;
+
+    lcd_i2c->clear();
+    lcd_i2c->setCursor(3, 0);
+    lcd_i2c->print("Watering now");
+    lcd_i2c->setCursor(0, 1);
+    lcd_i2c->print("Duration  : " + String(variables->wateringDuration) + " s");
+    lcd_i2c->setCursor(0,2);
+    lcd_i2c->print("Time left : " + String(timeLeft) + " s");
+
+    // Serial.println("//-----------------------------------//");
+    // Serial.println("Watering");
+    // Serial.println();
+    // Serial.println("Duration  : " + String(variables->wateringDuration));
+    // Serial.println("Full cells: " + String(fullCells));
+    // Serial.println("Last cell : " + String(lastCell));
+    // Serial.println("Length    : " + String(length));
+    // Serial.println("//-----------------------------------//");
+
+    // Вывод прогресс бара
+    lcd_i2c->setCursor(0,3);
+    for (int i =0; i < fullCells; i++){
+      lcd_i2c->write(5);
+    }
+    if (lastCell != 0){
+      lcd_i2c->write(lastCell);
+    }
+  }
+  else
+  {
+    if (screen == 0)
+    {
+      // Serial.println("Screen 1");
+      lcd_i2c->clear();
+      lcd_i2c->setCursor(0, 0);
+      lcd_i2c->print("Soil hum  : " + String(data->groundHum) + "%");
+      lcd_i2c->setCursor(0, 1);
+      lcd_i2c->print("Soil temp : " + String(data->groundTemp) + "C");
+      lcd_i2c->setCursor(0, 2);
+      lcd_i2c->print("Air hum   : " + String(data->airHum) + "%");
+      lcd_i2c->setCursor(0, 3);
+      lcd_i2c->print("Air temp  : " + String(data->airTemp) + "C");
+      screen++;
+      // worked = true;
+    }
+    else if (screen == 1)
+    {
+      // Serial.println("Screen 2");
+      lcd_i2c->clear();
+      lcd_i2c->setCursor(0, 0);
+      lcd_i2c->print("Air pressure: ");
+      lcd_i2c->setCursor(0, 1);
+      lcd_i2c->print("(pa)  : " + String(data->airPressure));
+      // lcd_i2c->print(String(data->airPressure) + " Pa");
+      lcd_i2c->setCursor(0, 2);
+      lcd_i2c->print("Light level: ");
+      lcd_i2c->setCursor(0, 3);
+      lcd_i2c->print("(lux) : " + String(data->lightLevel));
+      // lcd_i2c->print(String(data->lightLevel) + " lux");
+      screen++;
+    } else if (screen == 2){
+      lcd_i2c->clear();
+      lcd_i2c->setCursor(0, 0);
+      lcd_i2c->print("Lamp");
+      lcd_i2c->setCursor(0,1);
+      lcd_i2c->print("status: "  + String((relays->lightRelay.state == 0) ? "OFF" : "ON"));
+      lcd_i2c->setCursor(0,2);
+      lcd_i2c->print("Pump");
+      lcd_i2c->setCursor(0,3);
+      lcd_i2c->print("status: " + String((relays->pumpRelay.state == 0) ? "OFF" : "ON"));
+      screen = 0;
+    }
+  }
+}
+
+// Функция для BlynkTimer. Выводит данные на дисплей
+void showSensorsLCDWrapper()
+{
+  showSensorsLCD(&dataStorage, &lcd, &autoVariables, &relays);
+}
+
+BlynkTimer showDataLCD;
 
 void setup()
 {
@@ -959,8 +1147,8 @@ void setup()
   // Инициализация I2C шины
   // Первый аргумент - SDA
   // Второй аргумент - SCL
-  Wire.begin(D3, D4);
-  // Инициализация BME280 
+  Wire.begin();
+  // Инициализация BME280
   if (!bme280.begin(0x76, &Wire))
   {
     if (SHOW_DEBUG)
@@ -978,12 +1166,18 @@ void setup()
   lightSensor.begin(BH1750::ONE_TIME_HIGH_RES_MODE);
   // Записываем стартовые значения в autoVariables
   fillAutoVariables(&autoVariables);
-  
 
+  if (USE_LCD)
+  {
+    initLCD(&lcd);
+    // lcd.setCursor(2, 2);
+    // lcd.print("test");
+    showDataLCD.setInterval(1000L, showSensorsLCDWrapper);
+  }
   if (USE_BLYNK)
   {
-    // Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
-    Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
+    Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
+    // Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
     pushRelays.setInterval(500L, useRelaysCallback);
     transferData.setInterval(500L, blynkDataTransfer);
     autoLight.setInterval(200L, lightControlWrapper);
@@ -1017,6 +1211,10 @@ void loop()
     {
       autoWatering.run();
     }
+  }
+  if (USE_LCD)
+  {
+    showDataLCD.run();
   }
 
   if (SHOW_DEBUG)
