@@ -41,6 +41,7 @@ BH1750 lightSensor(0x23);
 // Датчик температуры и влажности воздуха
 Adafruit_BME280 bme280;
 // Датчик температуры почвы
+// D7 - IO13
 #define ONE_WIRE_BUS D7
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature groundSensors(&oneWire);
@@ -170,6 +171,8 @@ struct relayStates
 // Структура для хранения состояний реле
 struct relaysArray
 {
+  // D5 - IO14
+  // D6 - IO12
   relayStates lightRelay = {D5, LIGHT_RELAY_PIN, false, 0};
   relayStates pumpRelay = {D6, PUMP_RELAY_PIN, false, 1};
 };
@@ -1140,7 +1143,8 @@ void setup()
   pinMode(motor1.steppingPin, OUTPUT);
   pinMode(relays.lightRelay.pin, OUTPUT);
   pinMode(relays.pumpRelay.pin, OUTPUT);
-
+  // Выключить реле
+  useRelaysCallback();
   // Инициализируем EEPROM память с количеством выделенных ячеек равным EEPROM_CELLS_NUMBER
   EEPROM.begin(EEPROM_CELLS_NUMBER);
   // Восстанавливаем значения для реле и ...
@@ -1176,8 +1180,8 @@ void setup()
   }
   if (USE_BLYNK)
   {
-    Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
-    // Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
+    // Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
+    Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
     pushRelays.setInterval(500L, useRelaysCallback);
     transferData.setInterval(500L, blynkDataTransfer);
     autoLight.setInterval(200L, lightControlWrapper);
