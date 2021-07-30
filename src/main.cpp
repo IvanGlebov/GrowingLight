@@ -295,22 +295,22 @@ void useRelays(relaysArray *relays, int negResponseToBlynkValue = 0, int posResp
 {
   if (relays->lightRelay.state == true)
   {
-    digitalWrite(relays->lightRelay.pin, HIGH);
+    digitalWrite(relays->lightRelay.pin, LOW);
     // Blynk.virtualWrite(relays->lightRelay.virtualPin, posResponseToBlynkValue);
   }
   else
   {
-    digitalWrite(relays->lightRelay.pin, LOW);
+    digitalWrite(relays->lightRelay.pin, HIGH);
     // Blynk.virtualWrite(relays->lightRelay.virtualPin, negResponseToBlynkValue);
   }
   if (relays->pumpRelay.state == true)
   {
-    digitalWrite(relays->pumpRelay.pin, HIGH);
+    digitalWrite(relays->pumpRelay.pin, LOW);
     // Blynk.virtualWrite(relays->pumpRelay.virtualPin, posResponseToBlynkValue);
   }
   else
   {
-    digitalWrite(relays->pumpRelay.pin, LOW);
+    digitalWrite(relays->pumpRelay.pin, HIGH);
     // Blynk.virtualWrite(relays->pumpRelay.virtualPin, negResponseToBlynkValue);
   }
   if (SHOW_DEBUG)
