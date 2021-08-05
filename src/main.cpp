@@ -39,7 +39,7 @@
 
 // WidgetRTC rtc
 // Датчик освещённости
-BH1750 lightSensor(0x23);
+BH1750 lightSensor(0x5C);
 // Датчик температуры и влажности воздуха
 Adafruit_BME280 bme280;
 // Датчик температуры почвы
@@ -49,8 +49,10 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature groundSensors(&oneWire);
 
 // Дисплей
+LCD_1602_RUS lcd(0x3F, 20, 4);
 // LCD_1602_RUS lcd(0x27, 20, 4);
-LiquidCrystal_I2C lcd(0x27, 20, 4);
+
+// LiquidCrystal_I2C lcd(0x27, 20, 4);
 #define GROUND_HUM_SENSOR_PIN A0
 
 // Blynk pins mapping
@@ -394,11 +396,18 @@ BLYNK_WRITE(PUMP_RELAY_PIN)
 
 // Настройки для подключения к Blynk
 // Тут надо указать ключ конкретного устройства
-char auth[] = "";
+// Первый ключ ()
+// char auth[] = "97yo4_l7tPBuOgG14yX7WJVkRqRJZTsd";
+// Второй ключ (второй проект)
+char auth[] = "CwsJYD1ynqaZlaT1KJZdZmoO66VMdjVf";
 // Тут надо указать название WiFi сети
-char ssid[] = "";
+char ssid[] = "ZeroTwo1";
+// char ssid[] = "Keenetic-4926";
+// char ssid[] = "iPhone";
 // Тут надо указать пароля для WiFi сети
-char pass[] = "";
+char pass[] = "zqecxwrv123";
+// char pass[] = "Q4WmFQTa";
+// char pass[] = "12345678";
 
 BlynkTimer transferData;
 
@@ -1120,8 +1129,6 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
   }
   if (variables->wateringFlag == 1)
   {
-    
-
     int currentTime = hour() * 3600 + minute() * 60 + second();
     int timeLeft = variables->wateringTimestamp + variables->wateringDuration - currentTime;
     // Длина шкалы в процентах. Удобно что она совпадает по длине с количеством пикселей дисплея.
@@ -1131,11 +1138,11 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
 
     lcd_i2c->clear();
     lcd_i2c->setCursor(3, 0);
-    lcd_i2c->print("Watering now");
+    lcd_i2c->print("\xA5\xE3\xB5\xBF \xBE" + String("o\xBB\xB8\xB3"));
     lcd_i2c->setCursor(0, 1);
-    lcd_i2c->print("Duration  : " + String(variables->wateringDuration) + " s");
+    lcd_i2c->print("\xE0\xBB\xB8\xBF" + String("e\xBB\xC4\xBDoc\xBF\xC4") + String(" : ") + String(variables->wateringDuration) + " c");
     lcd_i2c->setCursor(0, 2);
-    lcd_i2c->print("Time left : " + String(timeLeft) + " s");
+    lcd_i2c->print("Oc\xBF" + String("a\xBBoc\xC4") + String(" : ") + String(timeLeft) + " c");
 
     // Serial.println("//-----------------------------------//");
     // Serial.println("Watering");
@@ -1166,17 +1173,18 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
       
-      // lcd_i2c->command(0b101000);
+      // lcd_i2c->command(0b101010);
       // delay(1000);
       // lcd_i2c->print('\x0A');
-      
-      lcd_i2c->print("Soil hum  : " + String(data->groundHum) + "%");
+
+      // lcd_i2c->print("\xA0");
+      lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundHum) + String("%"));
       lcd_i2c->setCursor(0, 1);
-      lcd_i2c->print("Soil temp : " + String(data->groundTemp) + "C");
+      lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundTemp) + "C");
       lcd_i2c->setCursor(0, 2);
-      lcd_i2c->print("Air hum   : " + String(data->airHum) + "%");
+      lcd_i2c->print("B\xBB" + String('a') + String("\xB6 \xB3o\xB7\xE3 : " + String(data->airHum) + "%"));
       lcd_i2c->setCursor(0, 3);
-      lcd_i2c->print("Air temp  : " + String(data->airTemp) + "C");
+      lcd_i2c->print("Te\xBC\xBE \xB3o\xB7\xE3 : " + String(data->airTemp) + "C");
       screen++;
       // worked = true;
     }
@@ -1185,14 +1193,14 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
       // Serial.println("Screen 2");
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
-      lcd_i2c->print("Air pressure: ");
+      lcd_i2c->print("A\xBF\xBC \xE3" + String('a') + String("\xB3\xBB") + String("e\xBD\xB8") + String('e'));
       lcd_i2c->setCursor(0, 1);
-      lcd_i2c->print("(mmHg): " + String(data->airPressure));
+      lcd_i2c->print("\xBC\xBC.p\xBF.c\xBF: " + String(data->airPressure));
       // lcd_i2c->print(String(data->airPressure) + " Pa");
       lcd_i2c->setCursor(0, 2);
-      lcd_i2c->print("Light level: ");
+      lcd_i2c->print("Oc\xB3" + String("e\xE6\xB5\xBD\xBDoc\xBF\xC4:"));
       lcd_i2c->setCursor(0, 3);
-      lcd_i2c->print("(lux) : " + String(data->lightLevel));
+      lcd_i2c->print("(\xA7\xC6\xBA" + String("c) : ") + String(data->lightLevel));
       // lcd_i2c->print(String(data->lightLevel) + " lux");
       screen++;
     }
@@ -1200,13 +1208,13 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
     {
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
-      lcd_i2c->print("Lamp");
+      lcd_i2c->print("\xA7" + String("a\xBC\xBE") + String("a"));
       lcd_i2c->setCursor(0, 1);
-      lcd_i2c->print("status: " + String((relays->lightRelay.state == 0) ? "OFF" : "ON"));
+      lcd_i2c->print("coc\xBFo\xC7\xBD\xB8" + String("e: ") + String((relays->lightRelay.state == 0) ? "B\xAEK\xA7" : "BK\xA7"));
       lcd_i2c->setCursor(0, 2);
-      lcd_i2c->print("Pump");
+      lcd_i2c->print("\xA8o\xBC\xBE" + String("a:"));
       lcd_i2c->setCursor(0, 3);
-      lcd_i2c->print("status: " + String((relays->pumpRelay.state == 0) ? "OFF" : "ON"));
+      lcd_i2c->print("coc\xBFo\xC7\xBD\xB8" + String("e: ") + String((relays->pumpRelay.state == 0) ? "B\xAEK\xA7" : "BK\xA7"));
       screen = 0;
     }
   }
@@ -1262,14 +1270,16 @@ void setup()
   if (USE_LCD)
   {
     initLCD(&lcd);
+    delay(1000);
+    lcd.command(0b101010);
     // lcd.setCursor(2, 2);
     // lcd.print("test");
     showDataLCD.setInterval(1000L, showSensorsLCDWrapper);
   }
   if (USE_BLYNK)
   {
-    Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
-    // Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
+    // Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
+    Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
     pushRelays.setInterval(500L, useRelaysCallback);
     transferData.setInterval(500L, blynkDataTransfer);
     autoLight.setInterval(200L, lightControlWrapper);
