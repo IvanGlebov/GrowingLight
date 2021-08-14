@@ -967,7 +967,7 @@ void wateringModeControl(autoModeVaruables *variables, sensorsData *data)
       variables->wateringMode = red;
 
       int diff = 75 - data->groundHum;
-      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      variables->wateringDuration = variables->baseWateringDuration
       Blynk.virtualWrite(RED_LED_PIN, 255);
       Blynk.virtualWrite(YELLOW_LED_PIN, 0);
       Blynk.virtualWrite(GREEN_LED_PIN, 0);
@@ -977,7 +977,7 @@ void wateringModeControl(autoModeVaruables *variables, sensorsData *data)
       variables->wateringMode = yellow;
 
       int diff = 75 - data->groundHum;
-      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      variables->wateringDuration = (variables->baseWateringDuration) / 2;
       Blynk.virtualWrite(RED_LED_PIN, 0);
       Blynk.virtualWrite(YELLOW_LED_PIN, 255);
       Blynk.virtualWrite(GREEN_LED_PIN, 0);
@@ -987,7 +987,7 @@ void wateringModeControl(autoModeVaruables *variables, sensorsData *data)
       variables->wateringMode = green;
 
       int diff = 75 - data->groundHum;
-      variables->wateringDuration = ((diff % 20) * variables->baseWateringDuration) / 20;
+      variables->wateringDuration = variables->baseWateringDuration;
       Blynk.virtualWrite(RED_LED_PIN, 0);
       Blynk.virtualWrite(YELLOW_LED_PIN, 0);
       Blynk.virtualWrite(GREEN_LED_PIN, 255);
