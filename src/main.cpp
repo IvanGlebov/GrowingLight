@@ -1083,13 +1083,13 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
       
-      lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundHum) + String("%"));
+      lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundHum) + String("C"));
       lcd_i2c->setCursor(0, 1);
-      lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundTemp) + "C");
+      lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundTemp) + "%");
       lcd_i2c->setCursor(0, 2);
-      lcd_i2c->print("B\xBB" + String('a') + String("\xB6 \xB3o\xB7\xE3 : " + String(data->airHum) + "%"));
-      lcd_i2c->setCursor(0, 3);
       lcd_i2c->print("Te\xBC\xBE \xB3o\xB7\xE3 : " + String(data->airTemp) + "C");
+      lcd_i2c->setCursor(0, 3);
+      lcd_i2c->print("B\xBB" + String('a') + String("\xB6 \xB3o\xB7\xE3 : " + String(data->airHum) + "%"));
       screen++;
     }
     else if (screen == 1)
