@@ -49,10 +49,8 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature groundSensors(&oneWire);
 
 // Дисплей
-LCD_1602_RUS lcd(0x3F, 20, 4);
-// LCD_1602_RUS lcd(0x27, 20, 4);
+LCD_1602_RUS lcd(0x27, 20, 4);
 
-// LiquidCrystal_I2C lcd(0x27, 20, 4);
 #define GROUND_HUM_SENSOR_PIN A0
 
 // Blynk pins mapping
@@ -318,22 +316,18 @@ void useRelays(relaysArray *relays, int negResponseToBlynkValue = 0, int posResp
   if (relays->lightRelay.state == true)
   {
     digitalWrite(relays->lightRelay.pin, LOW);
-    // Blynk.virtualWrite(relays->lightRelay.virtualPin, posResponseToBlynkValue);
   }
   else
   {
     digitalWrite(relays->lightRelay.pin, HIGH);
-    // Blynk.virtualWrite(relays->lightRelay.virtualPin, negResponseToBlynkValue);
   }
   if (relays->pumpRelay.state == true)
   {
     digitalWrite(relays->pumpRelay.pin, LOW);
-    // Blynk.virtualWrite(relays->pumpRelay.virtualPin, posResponseToBlynkValue);
   }
   else
   {
     digitalWrite(relays->pumpRelay.pin, HIGH);
-    // Blynk.virtualWrite(relays->pumpRelay.virtualPin, negResponseToBlynkValue);
   }
   if (SHOW_DEBUG)
   {
@@ -359,7 +353,6 @@ BLYNK_WRITE(LIGHT_RELAY_PIN)
   if (STORE_TO_EEPROM)
   {
     actionStruct action = {"Light realy store", relays.lightRelay.state, relays.lightRelay.eeprom_num};
-    // saveToEEPROM(&action);
     EEPROM.write(relays.lightRelay.eeprom_num, int(relays.lightRelay.state));
     EEPROM.commit();
     if (SHOW_DEBUG)
@@ -380,7 +373,6 @@ BLYNK_WRITE(PUMP_RELAY_PIN)
   if (STORE_TO_EEPROM)
   {
     actionStruct action = {"Pump realy store", relays.pumpRelay.state, relays.pumpRelay.eeprom_num};
-    // saveToEEPROM(&action);
     EEPROM.write(relays.pumpRelay.eeprom_num, int(relays.pumpRelay.state));
     EEPROM.commit();
     if (SHOW_DEBUG)
@@ -396,18 +388,11 @@ BLYNK_WRITE(PUMP_RELAY_PIN)
 
 // Настройки для подключения к Blynk
 // Тут надо указать ключ конкретного устройства
-// Первый ключ ()
-// char auth[] = "97yo4_l7tPBuOgG14yX7WJVkRqRJZTsd";
-// Второй ключ (второй проект)
-char auth[] = "CwsJYD1ynqaZlaT1KJZdZmoO66VMdjVf";
-// Тут надо указать название WiFi сети
-char ssid[] = "ZeroTwo1";
-// char ssid[] = "Keenetic-4926";
-// char ssid[] = "iPhone";
-// Тут надо указать пароля для WiFi сети
-char pass[] = "zqecxwrv123";
-// char pass[] = "Q4WmFQTa";
-// char pass[] = "12345678";
+char auth[] = "";
+// Тут надо указать имя WiFi сети
+char ssid[] = "";
+// Тут надо указать пароль WiFi сети
+char pass[] = "";
 
 BlynkTimer transferData;
 
@@ -453,9 +438,7 @@ BLYNK_WRITE(V31){
 }
 void getGroundHumidity(sensorsData *data, uint8_t pin)
 {
-  // %101 используется для отрезания лишних значений, которые превышают
   data->groundHum = map(analogRead(pin), mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
-  // data->groundHum = analogRead(A0);
 }
 // Функция принимает на вход указатель на переменную в которую будет записан ответ, указатель на объект
 // датчиков DS18B20 и вариативно индекс датчика. Если после выполнения пришло значение -100, то при
@@ -817,34 +800,7 @@ void lightControl(relayStates *lightRelay, int border, int lightLevel, int geste
     }
     if (lightWorked == 1 && lightLevel > border + gesteresis){
       autoVariables.lightWorked = 0;
-    }
-
-
-    // if (lightLevel < border - gesteresis)
-    // {
-    //   lightRelay->state = true;
-    //   if (DISPLAY_LIGHT_TO_BLYNK)
-    //   {
-    //     Blynk.virtualWrite(lightRelay->virtualPin, 1);
-    //   }
-    //   if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
-    //   {
-    //     Serial.println("AUTO! -> Light ON.");
-    //   }
-    // }
-    // if (lightLevel > border + gesteresis)
-    // {
-    //   lightRelay->state = false;
-    //   if (DISPLAY_LIGHT_TO_BLYNK)
-    //   {
-    //     Blynk.virtualWrite(lightRelay->virtualPin, 0);
-    //   }
-    //   if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
-    //   {
-    //     Serial.println("AUTO! -> Light OFF.");
-    //   }
-    // }
-  
+    }  
   }
 }
 void lightControlWrapper()
@@ -967,7 +923,7 @@ void wateringModeControl(autoModeVaruables *variables, sensorsData *data)
       variables->wateringMode = red;
 
       int diff = 75 - data->groundHum;
-      variables->wateringDuration = variables->baseWateringDuration
+      variables->wateringDuration = variables->baseWateringDuration;
       Blynk.virtualWrite(RED_LED_PIN, 255);
       Blynk.virtualWrite(YELLOW_LED_PIN, 0);
       Blynk.virtualWrite(GREEN_LED_PIN, 0);
@@ -1004,10 +960,7 @@ void watering(autoModeVaruables *variables, relayStates *pump)
     if (variables->wateringToOnFlag == 1)
     {
       int diff = 75 - dataStorage.groundHum;
-      // variables->wateringDuration = ((diff % 50) * variables->baseWateringDuration) / 50;
-      // variables->wateringDuration = 25;
       variables->wateringTimestamp = currentTime;
-      // variables->wateringDuration
       variables->wateringToOnFlag = 0;
       variables->wateringFlag = 1;
       if (SHOW_DEBUG && SHOW_WATERING_PROCESS)
@@ -1070,42 +1023,10 @@ void wateringWrapper()
 void initLCD(LiquidCrystal_I2C *lcd_i2c)
 {
   // Символ полностью заполненного квадрата
-  byte fiveCols[] = {
-      0x1F,
-      0x1F,
-      0x1F,
-      0x1F,
-      0x1F,
-      0x1F,
-      0x1F,
-      0x1F};
-  byte fourCols[] = {
-      0x1E,
-      0x1E,
-      0x1E,
-      0x1E,
-      0x1E,
-      0x1E,
-      0x1E,
-      0x1E};
-  byte threeCols[] = {
-      0x1C,
-      0x1C,
-      0x1C,
-      0x1C,
-      0x1C,
-      0x1C,
-      0x1C,
-      0x1C};
-  byte twoCols[] = {
-      0x18,
-      0x18,
-      0x18,
-      0x18,
-      0x18,
-      0x18,
-      0x18,
-      0x18};
+  byte fiveCols[] = {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
+  byte fourCols[] = {0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E};
+  byte threeCols[] = {0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C};
+  byte twoCols[] = {0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18};
   byte oneCol[] = {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10};
   // Инициализируем LCD дисплей
   lcd_i2c->init();
@@ -1119,7 +1040,6 @@ void initLCD(LiquidCrystal_I2C *lcd_i2c)
 }
 
 // Функция вывода информации о грядке на дисплей
-// int screen = 0;
 void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVaruables *variables, relaysArray *relays)
 {
   int static screen = 0;
@@ -1144,15 +1064,6 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
     lcd_i2c->setCursor(0, 2);
     lcd_i2c->print("Oc\xBF" + String("a\xBBoc\xC4") + String(" : ") + String(timeLeft) + " c");
 
-    // Serial.println("//-----------------------------------//");
-    // Serial.println("Watering");
-    // Serial.println();
-    // Serial.println("Duration  : " + String(variables->wateringDuration));
-    // Serial.println("Full cells: " + String(fullCells));
-    // Serial.println("Last cell : " + String(lastCell));
-    // Serial.println("Length    : " + String(length));
-    // Serial.println("//-----------------------------------//");
-
     // Вывод прогресс бара
     lcd_i2c->setCursor(0, 3);
     for (int i = 0; i < fullCells; i++)
@@ -1168,16 +1079,10 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
   {
     if (screen == 0)
     {
-      // Serial.println("Screen 1");
       
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
       
-      // lcd_i2c->command(0b101010);
-      // delay(1000);
-      // lcd_i2c->print('\x0A');
-
-      // lcd_i2c->print("\xA0");
       lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundHum) + String("%"));
       lcd_i2c->setCursor(0, 1);
       lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundTemp) + "C");
@@ -1186,22 +1091,18 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
       lcd_i2c->setCursor(0, 3);
       lcd_i2c->print("Te\xBC\xBE \xB3o\xB7\xE3 : " + String(data->airTemp) + "C");
       screen++;
-      // worked = true;
     }
     else if (screen == 1)
     {
-      // Serial.println("Screen 2");
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
       lcd_i2c->print("A\xBF\xBC \xE3" + String('a') + String("\xB3\xBB") + String("e\xBD\xB8") + String('e'));
       lcd_i2c->setCursor(0, 1);
       lcd_i2c->print("\xBC\xBC.p\xBF.c\xBF: " + String(data->airPressure));
-      // lcd_i2c->print(String(data->airPressure) + " Pa");
       lcd_i2c->setCursor(0, 2);
       lcd_i2c->print("Oc\xB3" + String("e\xE6\xB5\xBD\xBDoc\xBF\xC4:"));
       lcd_i2c->setCursor(0, 3);
       lcd_i2c->print("(\xA7\xC6\xBA" + String("c) : ") + String(data->lightLevel));
-      // lcd_i2c->print(String(data->lightLevel) + " lux");
       screen++;
     }
     else if (screen == 2)
@@ -1270,10 +1171,6 @@ void setup()
   if (USE_LCD)
   {
     initLCD(&lcd);
-    delay(1000);
-    lcd.command(0b101010);
-    // lcd.setCursor(2, 2);
-    // lcd.print("test");
     showDataLCD.setInterval(1000L, showSensorsLCDWrapper);
   }
   if (USE_BLYNK)
@@ -1342,7 +1239,6 @@ void loop()
       getGroundTemperature(&dataStorage, &groundSensors);
       Serial.println("Ground temperature: " + String(dataStorage.groundTemp));
     }
-
     delay(1000);
   }
 }
