@@ -1083,9 +1083,9 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
       
-      lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundHum) + String("C"));
+      lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundTemp) + String("C"));
       lcd_i2c->setCursor(0, 1);
-      lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundTemp) + "%");
+      lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundHum) + "%");
       lcd_i2c->setCursor(0, 2);
       lcd_i2c->print("Te\xBC\xBE \xB3o\xB7\xE3 : " + String(data->airTemp) + "C");
       lcd_i2c->setCursor(0, 3);
