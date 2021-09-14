@@ -15,6 +15,9 @@
 #include <TimeLib.h>
 #include <WidgetRTC.h>
 
+#include <Adafruit_ADS1X15.h>
+Adafruit_ADS1115 ads;
+
 // Общие константы
 #define USE_BLYNK true
 #define USE_LCD true
@@ -51,7 +54,7 @@ DallasTemperature groundSensors(&oneWire);
 // Дисплей
 LCD_1602_RUS lcd(0x27, 20, 4);
 
-#define GROUND_HUM_SENSOR_PIN A0
+#define GROUND_HUM_SENSOR_PIN 0
 
 // Blynk pins mapping
 #define GROUND_TEMP_PIN V1
@@ -436,9 +439,12 @@ BLYNK_WRITE(V31){
   int a = param.asInt();
   mapTo = a;
 }
-void getGroundHumidity(sensorsData *data, uint8_t pin)
+void getGroundHumidity(sensorsData *data, Adafruit_ADS1115 *ads, uint8_t adsPin)
 {
-  data->groundHum = map(analogRead(pin), mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
+  float volts = ads->readADC_SingleEnded(adsPin);
+  // TODO find out what voltage is max for this variant
+  data->groundHum = map(volts, mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
+  // data->groundHum = map(analogRead(pin), mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
 }
 // Функция принимает на вход указатель на переменную в которую будет записан ответ, указатель на объект
 // датчиков DS18B20 и вариативно индекс датчика. Если после выполнения пришло значение -100, то при
@@ -689,10 +695,10 @@ BLYNK_WRITE(APPROVE_STEP_PIN)
 //------------------------------------------------------//
 sensorsData dataStorage;
 // Функция, которая собирает данные с сенсоров и записывает их в структуру data
-void collectData(sensorsData *data, uint8_t pin, DallasTemperature *groundTempSensors,
+void collectData(sensorsData *data, Adafruit_ADS1115 *ads, uint8_t adsPin, DallasTemperature *groundTempSensors,
                  Adafruit_BME280 *bme280Sensor, BH1750 *bh1750Sensor)
 {
-  getGroundHumidity(data, pin);
+  getGroundHumidity(data, ads, adsPin);
   getGroundTemperature(data, groundTempSensors);
   getBME(data, bme280Sensor);
   getLightLevel(data, bh1750Sensor);
@@ -715,7 +721,7 @@ void blynkDataTransfer()
   {
     Serial.println("Sending data to Blynk");
   }
-  collectData(&dataStorage, GROUND_HUM_SENSOR_PIN, &groundSensors, &bme280, &lightSensor);
+  collectData(&dataStorage, &ads, GROUND_HUM_SENSOR_PIN, &groundSensors, &bme280, &lightSensor);
   pushDataToBlynk(&dataStorage, GROUND_TEMP_PIN, GROUND_HUM_PIN, AIR_TEMP_PIN, AIR_HUM_PIN, LIGHT_LEVEL_PIN, AIR_PRESSURE_PIN);
   if (SHOW_DEBUG && SHOW_SENSORS_DATA)
   {
@@ -1133,7 +1139,8 @@ void setup()
 {
   Serial.begin(115200);
   // Выставляем режимы работы на пины
-  pinMode(GROUND_HUM_SENSOR_PIN, INPUT);
+  // Removed as now there are ADS instead of this pin
+  // pinMode(GROUND_HUM_SENSOR_PIN, INPUT);
   pinMode(motor1.bottomSensor, INPUT);
   pinMode(motor1.topSensor, INPUT);
   pinMode(motor1.directionPin, OUTPUT);
@@ -1157,6 +1164,11 @@ void setup()
       Serial.println("Can't find valid BME280 sensor");
     }
   }
+  // Инициализация ADS1115
+  if(!ads.begin()){
+    Serial.println('Failed to initialize ADS1115');
+  }
+  
   // Инициализация DS18B20
   groundSensors.begin();
   Serial.print("Found ");
@@ -1226,7 +1238,7 @@ void loop()
     }
     if (TEST_GROUND_HUM)
     {
-      getGroundHumidity(&dataStorage, A0);
+      getGroundHumidity(&dataStorage, &ads, 0);
       Serial.println("Ground humidity: " + String(dataStorage.groundHum));
     }
     if (TEST_LIGHT)
