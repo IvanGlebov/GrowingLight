@@ -20,7 +20,7 @@ Adafruit_ADS1115 ads;
 
 // Общие константы
 #define USE_BLYNK true
-#define USE_LCD true
+#define USE_LCD false
 #define SHOW_DEBUG true
 #define SEND_SENSORS_DATA true
 #define PUSH_RELAYS true
@@ -34,15 +34,15 @@ Adafruit_ADS1115 ads;
 // Константы для управления тестами
 #define TEST_GET_BME false
 #define TEST_GROUND_HUM false
-#define TEST_LIGHT false
-#define TEST_GROUND_TEMP false
+#define TEST_LIGHT true
+#define TEST_GROUND_TEMP true
 #define TEST_STEPPER false
 #define TEST_CHECK_BORDER_FULL_FALSE false
 #define SHOW_RELAYS_PUSHING false
 
 // WidgetRTC rtc
 // Датчик освещённости
-BH1750 lightSensor(0x5C);
+BH1750 lightSensor(0x23); // или 0x5C
 // Датчик температуры и влажности воздуха
 Adafruit_BME280 bme280;
 // Датчик температуры почвы
@@ -150,8 +150,8 @@ void fillAutoVariables(autoModeVaruables *variables)
   variables->lightBorderEEPROM = 3;
   variables->lightDuration = 1; // Длительность досветки ночью
   variables->lightDurationEEPROM = 11;
-  variables->lightStart = hour()*3600 + minute()*60 + second();
-  variables->lightWorked = 0;  // Была ли досветка этой ночью
+  variables->lightStart = hour() * 3600 + minute() * 60 + second();
+  variables->lightWorked = 0; // Была ли досветка этой ночью
   variables->lightWorkedEEPROM = 12;
 
   // Полив
@@ -318,18 +318,22 @@ void useRelays(relaysArray *relays, int negResponseToBlynkValue = 0, int posResp
 {
   if (relays->lightRelay.state == true)
   {
+    Serial.println("On light");
     digitalWrite(relays->lightRelay.pin, LOW);
   }
   else
   {
+    Serial.println("Off light");
     digitalWrite(relays->lightRelay.pin, HIGH);
   }
   if (relays->pumpRelay.state == true)
   {
+    Serial.println("On pump");
     digitalWrite(relays->pumpRelay.pin, LOW);
   }
   else
   {
+    Serial.println("Off pump");
     digitalWrite(relays->pumpRelay.pin, HIGH);
   }
   if (SHOW_DEBUG)
@@ -430,21 +434,24 @@ void showSensorsData(sensorsData *data)
 // }
 int mapFrom = 0, mapTo = 0;
 // Map humidity from
-BLYNK_WRITE(V30){
+BLYNK_WRITE(V30)
+{
   int a = param.asInt();
   mapFrom = a;
 }
 // Map humidity to
-BLYNK_WRITE(V31){
+BLYNK_WRITE(V31)
+{
   int a = param.asInt();
   mapTo = a;
 }
-void getGroundHumidity(sensorsData *data, Adafruit_ADS1115 *ads, uint8_t adsPin)
+void getGroundHumidity(sensorsData *data)
 {
-  float volts = ads->readADC_SingleEnded(adsPin);
+  // float volts = ads->readADC_SingleEnded(adsPin);
   // TODO find out what voltage is max for this variant
-  data->groundHum = map(volts, mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
-  // data->groundHum = map(analogRead(pin), mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
+  // int hum = analogRead(A0);
+  // data->groundHum = map(hum, mapFrom, mapTo == 0 ? 255 : mapTo, 100, 0);
+  data->groundHum = map(analogRead(A0), mapFrom, mapTo == 0 ? 1024 : mapTo, 100, 0);
 }
 // Функция принимает на вход указатель на переменную в которую будет записан ответ, указатель на объект
 // датчиков DS18B20 и вариативно индекс датчика. Если после выполнения пришло значение -100, то при
@@ -468,7 +475,7 @@ void getBME(sensorsData *data, Adafruit_BME280 *sensor)
 {
   data->airTemp = sensor->readTemperature();
   data->airHum = sensor->readHumidity();
-  data->airPressure = sensor->readPressure()*7.50062/1000;
+  data->airPressure = sensor->readPressure() * 7.50062 / 1000;
 }
 // Функция принимает на вход указатель на переменну в которую будет записан ответ и указатель на объект
 // BH1750, из которого будут читаться данные
@@ -698,7 +705,7 @@ sensorsData dataStorage;
 void collectData(sensorsData *data, Adafruit_ADS1115 *ads, uint8_t adsPin, DallasTemperature *groundTempSensors,
                  Adafruit_BME280 *bme280Sensor, BH1750 *bh1750Sensor)
 {
-  getGroundHumidity(data, ads, adsPin);
+  getGroundHumidity(data);
   getGroundTemperature(data, groundTempSensors);
   getBME(data, bme280Sensor);
   getLightLevel(data, bh1750Sensor);
@@ -754,13 +761,15 @@ BLYNK_CONNECTED()
 }
 BlynkTimer autoLight;
 
-BLYNK_WRITE(V32){
+BLYNK_WRITE(V32)
+{
   int a = param.asInt();
   autoVariables.lightDuration = a;
   actionStruct action = {"Light duration", autoVariables.lightDuration, autoVariables.lightDurationEEPROM};
   saveToEEPROM(&action);
 }
-BLYNK_WRITE(V33){
+BLYNK_WRITE(V33)
+{
   int a = param.asInt();
   autoVariables.lightWorked = 0;
   actionStruct action = {"Light worked DROPPED!", autoVariables.lightWorked, autoVariables.lightWorkedEEPROM};
@@ -771,16 +780,19 @@ void lightControl(relayStates *lightRelay, int border, int lightLevel, int geste
 {
   if (autoWorkFlag == 1)
   {
-    int timeNow = hour()*3600 + minute()*60 + second();
-    if (lightLevel < border - gesteresis && lightWorked == 0){
+    int timeNow = hour() * 3600 + minute() * 60 + second();
+    if (lightLevel < border - gesteresis && lightWorked == 0)
+    {
+      Serial.println("On light AUTO");
       autoVariables.lightStart = timeNow;
       lightRelay->state = true;
       autoVariables.lightWorked = 1;
       actionStruct lightAction = {"Light worked", 1, autoVariables.lightWorkedEEPROM};
       saveToEEPROM(&lightAction);
 
-      if (DISPLAY_LIGHT_TO_BLYNK){
-        Blynk.virtualWrite(lightRelay->virtualPin, 1); 
+      if (DISPLAY_LIGHT_TO_BLYNK)
+      {
+        Blynk.virtualWrite(lightRelay->virtualPin, 1);
       }
       if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
       {
@@ -789,24 +801,30 @@ void lightControl(relayStates *lightRelay, int border, int lightLevel, int geste
         Serial.println("Light worked is 1 now.");
       }
     }
-    if (timeNow - autoVariables.lightStart > autoVariables.lightDuration*3600){
+    if (timeNow - autoVariables.lightStart > autoVariables.lightDuration * 3600)
+    {
       lightRelay->state = false;
-      if (DISPLAY_LIGHT_TO_BLYNK){
-        Blynk.virtualWrite(lightRelay->virtualPin, 0); 
+      if (DISPLAY_LIGHT_TO_BLYNK)
+      {
+        Blynk.virtualWrite(lightRelay->virtualPin, 0);
       }
       if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
       {
         Serial.println("AUTO! -> Light OFF.");
         Serial.println("Not changed light level worked flag");
       }
-    } else {
-      if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG){
-        Serial.println("Light extension time left: " + String(autoVariables.lightStart + autoVariables.lightDuration*3600 - timeNow));
+    }
+    else
+    {
+      if (SHOW_DEBUG && SHOW_AUTO_LIGHT_LOG)
+      {
+        Serial.println("Light extension time left: " + String(autoVariables.lightStart + autoVariables.lightDuration * 3600 - timeNow));
       }
     }
-    if (lightWorked == 1 && lightLevel > border + gesteresis){
+    if (lightWorked == 1 && lightLevel > border + gesteresis)
+    {
       autoVariables.lightWorked = 0;
-    }  
+    }
   }
 }
 void lightControlWrapper()
@@ -1085,10 +1103,10 @@ void showSensorsLCD(sensorsData *data, LiquidCrystal_I2C *lcd_i2c, autoModeVarua
   {
     if (screen == 0)
     {
-      
+
       lcd_i2c->clear();
       lcd_i2c->setCursor(0, 0);
-      
+
       lcd_i2c->print("Te\xBC\xBE \xBEo\xC0\xB3\xC3: " + String(data->groundTemp) + String("C"));
       lcd_i2c->setCursor(0, 1);
       lcd_i2c->print(String("B\xBB") + String('a') + String("\xB6 \xBEo\xC0\xB3\xC3: ") + String(data->groundHum) + "%");
@@ -1165,10 +1183,11 @@ void setup()
     }
   }
   // Инициализация ADS1115
-  if(!ads.begin()){
-    Serial.println('Failed to initialize ADS1115');
+  if (!ads.begin())
+  {
+    Serial.println("Failed to initialize ADS1115");
   }
-  
+
   // Инициализация DS18B20
   groundSensors.begin();
   Serial.print("Found ");
@@ -1188,7 +1207,7 @@ void setup()
   if (USE_BLYNK)
   {
     // Blynk.begin(auth, ssid, pass, IPAddress(192, 168, 1, 106), 8080);
-    Blynk.begin(auth, ssid, pass, "blynk8080.iota02.keenetic.link", 778);
+    Blynk.begin(auth, ssid, pass, "iota02.keenetic.link", 58080);
     pushRelays.setInterval(500L, useRelaysCallback);
     transferData.setInterval(500L, blynkDataTransfer);
     autoLight.setInterval(200L, lightControlWrapper);
@@ -1238,7 +1257,7 @@ void loop()
     }
     if (TEST_GROUND_HUM)
     {
-      getGroundHumidity(&dataStorage, &ads, 0);
+      getGroundHumidity(&dataStorage);
       Serial.println("Ground humidity: " + String(dataStorage.groundHum));
     }
     if (TEST_LIGHT)
